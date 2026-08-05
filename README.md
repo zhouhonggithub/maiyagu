@@ -1,32 +1,35 @@
-# 麦芽谷 · AI 农场
+# AI农场 SaaS 平台
 
-温馨写实卡通风格的 Three.js 互动农场演示。包含玉米、番茄、向日葵，健康、虫害、叶片受损三种状态，以及晴朗、多云、细雨、大风、夜晚五种天气。
+面向江浙沪CSA/认养农场的数字化体验平台。
 
-## 本地运行
+## 项目结构
 
-项目需要 Node.js 22.13 或更高版本。
+```
+ai-farm-platform/
+├── apps/
+│   ├── client/       → 用户端（会员小程序/Web）- vinext + Cloudflare Workers
+│   ├── farm/         → 农场端（农场主管理后台）- TODO
+│   └── admin/        → 管理端（平台运营后台）- TODO
+├── packages/
+│   ├── api/          → 后端 API 服务（模块化单体）- TODO
+│   └── shared/       → 三端共享类型和工具 - TODO
+└── docs/             → 架构文档
+```
+
+## 快速开始
+
+### 用户端开发
 
 ```bash
+cd apps/client
 npm install
 npm run dev
 ```
 
-浏览器打开 `http://localhost:3000/`。
+### 部署
 
-生产构建：
+用户端部署在 Cloudflare Pages，Root directory 设置为 `apps/client`。
 
-```bash
-npm run build
-```
+## 文档
 
-## 操作
-
-- 默认使用固定上帝视角，不支持拖拽旋转
-- 点击右侧人物卡片：进入或退出农场漫游
-- WASD 或方向键：控制人物行走
-- 点击作物：查看健康卡片
-- 右上角按钮：切换天气
-- 数字键 1–5：快速切换天气
-- Esc：关闭作物卡片
-
-AI生成的美术方向稿保存在 `public/art-direction.png`，页面中的农场和作物均为实时3D模型，不是背景图片。
+- [架构设计文档](./docs/architecture.md)
