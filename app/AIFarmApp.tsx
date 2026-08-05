@@ -3,7 +3,7 @@
 import { create } from "zustand";
 import { useEffect, useMemo, useState } from "react";
 import FarmExperience from "./FarmExperience";
-import { ADVICES, AppPage, AuthSession, CAMERAS, PLOTS, Season, SNAPSHOT, SOLAR_TERMS_2026, VISITORS } from "./farmData";
+import { ADVICES, AppPage, AuthSession, CAMERAS, FARM_ARCHIVE, PLOTS, Season, SNAPSHOT, SOLAR_TERMS_2026, VISITOR_CODEX, VISITORS } from "./farmData";
 
 interface AppStore {
   session: AuthSession | null;
@@ -13,7 +13,12 @@ interface AppStore {
   cameraId: string | null;
   season: Season;
   sidebarCollapsed: boolean;
+  farmIndex: number;
   instructions: FarmInstruction[];
+  shareCopied: boolean;
+  shareLiked: boolean;
+  shareLikes: number;
+  assists: FarmAssistLog[];
   setSession: (session: AuthSession | null) => void;
   setPage: (page: AppPage) => void;
   setMenuOpen: (open: boolean) => void;
@@ -21,21 +26,52 @@ interface AppStore {
   setCameraId: (id: string | null) => void;
   setSeason: (season: Season) => void;
   toggleSidebar: () => void;
+  switchFarm: () => void;
   addInstruction: (crop: string, action: InstructionAction, icon: string) => void;
   advanceInstruction: (id: string) => void;
+  setShareCopied: (copied: boolean) => void;
+  toggleShareLike: () => void;
+  addAssist: (type: AssistType) => void;
 }
 
 type InstructionAction = "water" | "plant" | "harvest";
+type AssistType = "water" | "fertilize" | "pest" | "sun";
 interface FarmInstruction { id: string; crop: string; icon: string; action: InstructionAction; title: string; createdAt: string; progress: number; status: "pending" | "working" | "done" }
+interface FarmAssistLog { id: string; visitor: string; type: AssistType; label: string; icon: string; createdAt: string }
+interface HarvestEvent { id: string; date: string; crop: string; icon: string; plot: string; progress: number; amount: string; status: "past" | "today" | "future"; note: string }
 
 const ACTION_LABEL: Record<InstructionAction, string> = { water: "浇水", plant: "种植 / 补种", harvest: "收获" };
 const INITIAL_INSTRUCTIONS: FarmInstruction[] = [
   { id: "task-water-b2", crop: "樱桃番茄", icon: "🍅", action: "water", title: "给番茄 B2 补水", createdAt: "今天 09:10", progress: 65, status: "working" },
   { id: "task-plant-d3", crop: "秋菠菜", icon: "🍃", action: "plant", title: "准备 D3 秋菠菜播种", createdAt: "今天 08:35", progress: 20, status: "pending" },
 ];
+const ASSIST_ACTIONS: Record<AssistType, { label: string; icon: string; note: string }> = {
+  water: { label: "助力浇水", icon: "💧", note: "给番茄区补一点水汽" },
+  fertilize: { label: "助力施肥", icon: "🌿", note: "为玉米地加一份营养" },
+  pest: { label: "除虫提醒", icon: "🐛", note: "提醒主人检查叶背" },
+  sun: { label: "阳光点赞", icon: "☀", note: "给农场攒一点好天气" },
+};
+const INITIAL_ASSISTS: FarmAssistLog[] = [
+  { id: "assist-1", visitor: "阿禾", type: "water", label: ASSIST_ACTIONS.water.label, icon: ASSIST_ACTIONS.water.icon, createdAt: "10分钟前" },
+  { id: "assist-2", visitor: "小满", type: "sun", label: ASSIST_ACTIONS.sun.label, icon: ASSIST_ACTIONS.sun.icon, createdAt: "26分钟前" },
+  { id: "assist-3", visitor: "南瓜同学", type: "fertilize", label: ASSIST_ACTIONS.fertilize.label, icon: ASSIST_ACTIONS.fertilize.icon, createdAt: "1小时前" },
+];
+const FARM_SIGNS = [
+  { name: "麦芽谷农场", location: "杭州菜园", status: "晴朗 · 夏季 · 健康度 86" },
+  { name: "溪边小菜园", location: "余杭溪畔", status: "多云 · 夏季 · 健康度 82" },
+  { name: "向阳试验田", location: "杭州西侧", status: "晴朗 · 轮作观察中" },
+];
+const HARVEST_EVENTS: HarvestEvent[] = [
+  { id: "h1", date: "2026-07-26", crop: "小白菜", icon: "🥬", plot: "D3", progress: 100, amount: "2.4kg", status: "past", note: "已完成打包，作为首批体验菜发出。" },
+  { id: "h2", date: "2026-07-31", crop: "樱桃番茄", icon: "🍅", plot: "B2", progress: 100, amount: "1.8kg", status: "past", note: "甜度稳定，历史收成记录已归档。" },
+  { id: "h3", date: "2026-08-05", crop: "樱桃番茄", icon: "🍅", plot: "B2", progress: 100, amount: "预计 1.6kg", status: "today", note: "今天 16:30 前建议完成采摘。" },
+  { id: "h4", date: "2026-08-08", crop: "甜玉米", icon: "🌽", plot: "A1", progress: 82, amount: "预计 8 根", status: "future", note: "进入收成观察期，等待穗粒饱满。" },
+  { id: "h5", date: "2026-08-13", crop: "向日葵籽", icon: "🌻", plot: "C1", progress: 64, amount: "预计 0.9kg", status: "future", note: "花盘稳定，后续观察干燥度。" },
+  { id: "h6", date: "2026-08-18", crop: "秋菠菜试种", icon: "🍃", plot: "D3", progress: 28, amount: "试种记录", status: "future", note: "用于秋季计划验证，不作为正式收成。" },
+];
 
 const useApp = create<AppStore>((set) => ({
-  session: null, page: "farm", menuOpen: false, advisorOpen: false, cameraId: null, season: "summer", sidebarCollapsed: false, instructions: INITIAL_INSTRUCTIONS,
+  session: null, page: "farm", menuOpen: false, advisorOpen: false, cameraId: null, season: "summer", sidebarCollapsed: false, farmIndex: 0, instructions: INITIAL_INSTRUCTIONS, shareCopied: false, shareLiked: false, shareLikes: 128, assists: INITIAL_ASSISTS,
   setSession: (session) => set({ session }),
   setPage: (page) => set({ page, menuOpen: false }),
   setMenuOpen: (menuOpen) => set({ menuOpen }),
@@ -43,8 +79,12 @@ const useApp = create<AppStore>((set) => ({
   setCameraId: (cameraId) => set({ cameraId }),
   setSeason: (season) => set({ season }),
   toggleSidebar: () => set((state) => ({ sidebarCollapsed: !state.sidebarCollapsed })),
+  switchFarm: () => set((state) => ({ farmIndex: (state.farmIndex + 1) % FARM_SIGNS.length })),
   addInstruction: (crop, action, icon) => set((state) => ({ instructions: [{ id: `task-${Date.now()}`, crop, icon, action, title: `${ACTION_LABEL[action]} · ${crop}`, createdAt: "刚刚", progress: 0, status: "pending" }, ...state.instructions] })),
   advanceInstruction: (id) => set((state) => ({ instructions: state.instructions.map((task) => task.id === id ? { ...task, progress: Math.min(100, task.progress + 35), status: task.progress + 35 >= 100 ? "done" : "working" } : task) })),
+  setShareCopied: (shareCopied) => set({ shareCopied }),
+  toggleShareLike: () => set((state) => ({ shareLiked: !state.shareLiked, shareLikes: state.shareLiked ? state.shareLikes - 1 : state.shareLikes + 1 })),
+  addAssist: (type) => set((state) => ({ assists: [{ id: `assist-${Date.now()}`, visitor: "访客", type, label: ASSIST_ACTIONS[type].label, icon: ASSIST_ACTIONS[type].icon, createdAt: "刚刚" }, ...state.assists].slice(0, 8) })),
 }));
 
 const NAV: Array<{ id: AppPage; icon: string; label: string; note: string }> = [
@@ -52,6 +92,8 @@ const NAV: Array<{ id: AppPage; icon: string; label: string; note: string }> = [
   { id: "journal", icon: "📖", label: "农场手账", note: "土地与作物分析" },
   { id: "seasons", icon: "🌱", label: "四季计划", note: "跟着时节去种植" },
   { id: "visitors", icon: "🐞", label: "访客日历", note: "虫鸟人的小故事" },
+  { id: "codex", icon: "✨", label: "农场图鉴", note: "解锁田野访客" },
+  { id: "archive", icon: "🗂", label: "数字档案", note: "土地的长期记录" },
   { id: "commands", icon: "📋", label: "我的指令", note: "查看农事执行进度" },
   { id: "profile", icon: "🧑‍🌾", label: "我的", note: "账号与农场设置" },
 ];
@@ -117,7 +159,7 @@ function Sidebar() {
       <button className="sidebar-collapse" onClick={toggleSidebar} aria-label={sidebarCollapsed ? "展开左侧导航" : "收起左侧导航"}>{sidebarCollapsed ? "›" : "‹"}</button>
       <div className="sidebar-brand"><span>芽</span><div><small>AI FARM · 001</small><strong>麦芽谷</strong></div></div>
       <div className="farm-mini"><i>🌿</i><div><strong>杭州菜园</strong><small><b /> 数据连接正常</small></div><em>{SNAPSHOT.health}</em></div>
-      <nav>{NAV.map((item) => <button key={item.id} className={page === item.id ? "active" : ""} onClick={() => setPage(item.id)} title={sidebarCollapsed ? item.label : undefined}><span>{item.icon}</span><div><strong>{item.label}</strong><small>{item.note}</small></div>{item.id === "visitors" && <i>5</i>}{item.id === "commands" && instructions.some((task) => task.status !== "done") && <i>{instructions.filter((task) => task.status !== "done").length}</i>}</button>)}</nav>
+      <nav>{NAV.map((item) => <button key={item.id} className={page === item.id ? "active" : ""} onClick={() => setPage(item.id)} title={sidebarCollapsed ? item.label : undefined}><span>{item.icon}</span><div><strong>{item.label}</strong><small>{item.note}</small></div>{item.id === "codex" && <i>{VISITOR_CODEX.filter((entry) => entry.unlocked).length}/{VISITOR_CODEX.length}</i>}{item.id === "commands" && instructions.some((task) => task.status !== "done") && <i>{instructions.filter((task) => task.status !== "done").length}</i>}</button>)}</nav>
       <div className="sidebar-foot"><span>☁</span><p><strong>云端同步完成</strong><small>最近更新 · 刚刚</small></p></div>
     </aside>
     {menuOpen && <button className="menu-scrim" onClick={() => setMenuOpen(false)} aria-label="关闭导航" />}
@@ -137,19 +179,67 @@ function FarmAdvisor() {
   </aside>;
 }
 
-function FarmOverlay() {
+function ShareButton() {
+  const { shareCopied, setShareCopied } = useApp();
+  const shareUrl = typeof window === "undefined" ? "" : `${window.location.origin}${window.location.pathname}?share=1`;
+  const copy = async () => {
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: "麦芽谷农场", text: "来我的麦芽谷农场走一走，顺手帮我浇浇水。", url: shareUrl });
+        setShareCopied(true);
+        window.setTimeout(() => setShareCopied(false), 1800);
+        return;
+      } catch {
+        // Falling back to clipboard keeps the local demo smooth when share is cancelled.
+      }
+    }
+    await navigator.clipboard?.writeText(shareUrl);
+    setShareCopied(true);
+    window.setTimeout(() => setShareCopied(false), 1800);
+  };
+  return <button className="farm-share-button" onClick={copy}><span>↗</span><div><small>分享农场</small><strong>{shareCopied ? "链接已复制" : "邀请朋友助力"}</strong></div></button>;
+}
+
+function FarmSign({ interactive = true }: { interactive?: boolean }) {
+  const { farmIndex, switchFarm } = useApp();
+  const farm = FARM_SIGNS[farmIndex];
+  const content = <><span>芽</span><div><small>{farm.location}</small><strong>{farm.name}</strong><em>{farm.status}</em>{interactive && <b>点击切换农场</b>}</div></>;
+  return interactive ? <button className="farm-wood-sign" onClick={switchFarm}>{content}</button> : <div className="farm-wood-sign static">{content}</div>;
+}
+
+function FarmOverlay({ shared = false, assist = false }: { shared?: boolean; assist?: boolean }) {
   const setCameraId = useApp((s) => s.setCameraId);
-  return <><div className="today-note"><span>☘</span><div><small>今日农场手账</small><strong>田野整体状态不错</strong><p>番茄 B2 有一点渴，上午来了几位小客人。</p></div></div><button className="camera-entry" onClick={() => setCameraId("cam-wide")}><span>▣</span><div><small>真实现场</small><strong>查看农场监控</strong></div><i>LIVE</i></button><HarvestProgress /><FarmAdvisor /></>;
+  return <><div className="today-note"><span>☘</span><div><small>{shared || assist ? "来自麦芽谷的邀请" : "今日农场手账"}</small><strong>田野整体状态不错</strong><p>番茄 B2 有一点渴，上午来了几位小客人。</p></div></div>{!shared && !assist && <button className="camera-entry" onClick={() => setCameraId("cam-wide")}><span>▣</span><div><small>真实现场</small><strong>查看农场监控</strong></div><i>LIVE</i></button>}<HarvestProgress /><FarmSign interactive={!shared && !assist} />{assist ? <ShareAssistPanel /> : shared ? <AssistEntryButton /> : <><ShareButton /><FarmAdvisor /></>}</>;
+}
+
+function ShareAssistPanel() {
+  const { assists, addAssist, shareLiked, shareLikes, toggleShareLike } = useApp();
+  const [open, setOpen] = useState(false);
+  return <aside className={`share-assist-panel ${open ? "open" : "collapsed"}`}><button className="assist-dock" onClick={() => setOpen(!open)}><span>🌿</span><div><small>FRIEND SUPPORT</small><strong>{open ? "收起助力" : "展开助力功能"}</strong></div><b>{open ? "×" : "＋"}</b></button>{open && <><header><div><small>FRIEND SUPPORT</small><strong>给这块地一点帮助</strong></div><button className={shareLiked ? "liked" : ""} onClick={toggleShareLike}><span>♡</span>{shareLikes}</button></header><div className="assist-actions">{(Object.keys(ASSIST_ACTIONS) as AssistType[]).map((key) => <button key={key} onClick={() => addAssist(key)}><span>{ASSIST_ACTIONS[key].icon}</span><strong>{ASSIST_ACTIONS[key].label}</strong><small>{ASSIST_ACTIONS[key].note}</small></button>)}</div><section className="assist-log"><div><small>VISITOR LOG</small><strong>访客助力日志</strong></div>{assists.map((item) => <p key={item.id}><span>{item.icon}</span><b>{item.visitor}</b><em>{item.label}</em><small>{item.createdAt}</small></p>)}</section></>}</aside>;
+}
+
+function AssistEntryButton() {
+  const openAssist = () => {
+    window.history.pushState(null, "", `${window.location.pathname}?assist=1`);
+    window.dispatchEvent(new PopStateEvent("popstate"));
+  };
+  return <button className="assist-entry-button" onClick={openAssist}><span>🌿</span><div><small>朋友助力</small><strong>去浇水施肥</strong></div><b>›</b></button>;
 }
 
 function HarvestProgress() {
-  const setPage = useApp((s) => s.setPage);
-  const harvests = [
-    { crop: "樱桃番茄", icon: "🍅", time: "今天 16:30", progress: 100, ready: true },
-    { crop: "甜玉米", icon: "🌽", time: "预计 3 天后", progress: 82, ready: false },
-    { crop: "向日葵籽", icon: "🌻", time: "预计 8 天后", progress: 64, ready: false },
-  ];
-  return <aside className="harvest-progress"><header><div><small>NEXT HARVEST</small><strong>收成进度</strong></div><button onClick={() => setPage("commands")}>我的指令 ›</button></header>{harvests.map((item) => <div className={`harvest-row ${item.ready ? "ready" : ""}`} key={item.crop}><span>{item.icon}{item.ready && <i>可收</i>}</span><div><strong>{item.crop}</strong><small>{item.time}</small><b><i style={{ width: `${item.progress}%` }} /></b></div><em>{item.progress}%</em></div>)}</aside>;
+  const [calendarOpen, setCalendarOpen] = useState(false);
+  return <><aside className="harvest-timeline" onClick={() => setCalendarOpen(true)}><div className="harvest-line"><span className="harvest-line-bar" />{HARVEST_EVENTS.map((item) => <button key={item.id} className={`harvest-dot ${item.status}`}><i>{item.icon}</i></button>)}</div><div className="harvest-dates">{HARVEST_EVENTS.map((item) => <span key={item.id} className={item.status}>{new Intl.DateTimeFormat("zh-CN", { month: "numeric", day: "numeric" }).format(new Date(`${item.date}T00:00:00+08:00`))}</span>)}</div></aside>{calendarOpen && <HarvestCalendarModal onClose={() => setCalendarOpen(false)} />}</>;
+}
+
+function HarvestCalendarModal({ onClose }: { onClose: () => void }) {
+  const days = useMemo(() => Array.from({ length: 31 }, (_, index) => index + 1), []);
+  const past = HARVEST_EVENTS.filter((item) => item.status === "past");
+  const future = HARVEST_EVENTS.filter((item) => item.status !== "past");
+  return <div className="harvest-modal-backdrop" role="dialog" aria-modal="true" aria-label="收成日历"><section className="harvest-modal"><header><div><small>HARVEST CALENDAR · 2026.08</small><h2>收成日历</h2><p>历史收成与即将收成都会在这里归档。</p></div><button onClick={onClose} aria-label="关闭收成日历">×</button></header><div className="harvest-calendar-layout"><article className="harvest-month"><div className="week-row">{"一二三四五六日".split("").map((day) => <span key={day}>周{day}</span>)}</div><div className="harvest-calendar-grid"><i /><i /><i /><i /><i />{days.map((day) => { const events = HARVEST_EVENTS.filter((item) => Number(item.date.slice(-2)) === day); return <button key={day} className={events.length ? `has-harvest ${events.some((item) => item.status === "today") ? "today" : ""}` : ""}><b>{day}</b><span>{events.map((item) => item.icon).join("")}</span>{events.some((item) => item.status === "today") && <em>可收</em>}</button>; })}</div></article><aside className="harvest-detail-list"><section><h3>历史收成</h3>{past.map((item) => <HarvestDetailItem key={item.id} item={item} />)}</section><section><h3>即将收成</h3>{future.map((item) => <HarvestDetailItem key={item.id} item={item} />)}</section></aside></div></section></div>;
+}
+
+function HarvestDetailItem({ item }: { item: HarvestEvent }) {
+  return <article className={`harvest-detail-item ${item.status}`}><span>{item.icon}</span><div><small>{item.date} · {item.plot}</small><strong>{item.crop}</strong><p>{item.note}</p><b><i style={{ width: `${item.progress}%` }} /></b></div><em>{item.amount}</em></article>;
 }
 
 function JournalPage() {
@@ -178,15 +268,61 @@ function SeasonsPage() {
 }
 
 function VisitorsPage() {
-  const [view, setView] = useState<"calendar" | "cards">("calendar");
   const [selected, setSelected] = useState(VISITORS[0]);
   const [photoOpen, setPhotoOpen] = useState(false);
-  const setCameraId = useApp((s) => s.setCameraId);
+  const { setCameraId, setPage } = useApp();
   const days = useMemo(() => Array.from({ length: 31 }, (_, i) => i + 1), []);
+  const unlockedCount = VISITOR_CODEX.filter((entry) => entry.unlocked).length;
+  const completion = Math.round((unlockedCount / VISITOR_CODEX.length) * 100);
   return <section className="content-page visitor-page"><PageHeader icon="🐞" title="访客日历" subtitle="把摄像头见到的虫、鸟、人与小动物收进自然手账" />
-    <div className="view-switch"><button className={view === "calendar" ? "active" : ""} onClick={() => setView("calendar")}>月历</button><button className={view === "cards" ? "active" : ""} onClick={() => setView("cards")}>访客图鉴</button></div>
-    {view === "calendar" ? <div className="visitor-layout"><article className="calendar-card"><div className="calendar-head"><button>‹</button><h2>2026年 8月</h2><button>›</button></div><div className="week-row">{"一二三四五六日".split("").map((d) => <span key={d}>周{d}</span>)}</div><div className="calendar-grid"><i /><i /><i /><i /><i />{days.map((day) => { const events = VISITORS.filter((v) => Number(v.date.slice(-2)) === day); return <button key={day} className={events.length ? "has-event" : ""} onClick={() => events[0] && setSelected(events[0])}><b>{day}</b><span>{events.map((e) => e.icon).join("")}</span>{day === 5 && <em>今天</em>}</button>; })}</div></article><VisitorDetail event={selected} onCamera={() => setCameraId(selected.cameraId)} onPhoto={() => setPhotoOpen(true)} /></div> : <div className="visitor-cards">{VISITORS.map((event) => <article key={event.id}><button className="visitor-card-main" onClick={() => { setSelected(event); setView("calendar"); }}><span>{event.icon}</span><small>{event.kind === "insect" ? "昆虫访客" : event.kind === "bird" ? "飞鸟访客" : event.kind === "person" ? "人物记录" : "动物访客"}</small><strong>{event.name}</strong><p>{event.impact}</p><em>发现 {event.count} 次</em></button><button className="real-photo-entry" onClick={() => { setSelected(event); setPhotoOpen(true); }}><span>▧</span> 查看真实照片</button></article>)}</div>}
+    <div className="codex-summary"><div><small>VISITOR CODEX</small><strong>图鉴解锁 {unlockedCount}/{VISITOR_CODEX.length}</strong><span>灰色卡片代表真实监控还没有捕捉到足够清晰的记录。</span></div><b><i style={{ width: `${completion}%` }} /></b><em>{completion}%</em></div>
+    <div className="view-switch"><button className="active">月历</button><button onClick={() => setPage("codex")}>访客图鉴</button></div>
+    <div className="visitor-layout"><article className="calendar-card"><div className="calendar-head"><button>‹</button><h2>2026年 8月</h2><button>›</button></div><div className="week-row">{"一二三四五六日".split("").map((d) => <span key={d}>周{d}</span>)}</div><div className="calendar-grid"><i /><i /><i /><i /><i />{days.map((day) => { const events = VISITORS.filter((v) => Number(v.date.slice(-2)) === day); return <button key={day} className={events.length ? "has-event" : ""} onClick={() => events[0] && setSelected(events[0])}><b>{day}</b><span>{events.map((e) => e.icon).join("")}</span>{day === 5 && <em>今天</em>}</button>; })}</div></article><VisitorDetail event={selected} onCamera={() => setCameraId(selected.cameraId)} onPhoto={() => setPhotoOpen(true)} /></div>
     {photoOpen && <VisitorPhotoModal event={selected} onClose={() => setPhotoOpen(false)} />}
+  </section>;
+}
+
+function CodexGrid({ onPhoto }: { onPhoto: (eventId?: string) => void }) {
+  return <div className="visitor-cards codex-grid">{VISITOR_CODEX.map((entry) => {
+    const event = entry.eventId ? VISITORS.find((item) => item.id === entry.eventId) : undefined;
+    const seasonLabel = entry.season.map((item) => ({ spring: "春", summer: "夏", autumn: "秋", winter: "冬" })[item]).join(" / ");
+    return <article key={entry.id} className={`codex-card rarity-${entry.rarity} level-${entry.level} ${entry.unlocked ? "unlocked" : "locked"} ${entry.featured ? "featured" : ""}`}><button className="visitor-card-main" disabled={!entry.unlocked} onClick={() => event && onPhoto(event.id)}><span>{entry.unlocked ? entry.icon : "?"}</span><small>{entry.rarity === "rare" ? "稀有访客" : entry.rarity === "uncommon" ? "不常见访客" : "常见访客"}</small><strong>{entry.unlocked ? entry.name : "未解锁"}</strong><p>{entry.story}</p><em>{entry.unlocked ? `累计发现 ${entry.totalSeen} 次` : `线索：${entry.habitat}`}</em></button><div className="codex-level"><span>Lv.{entry.level}</span><b>{Array.from({ length: 5 }, (_, index) => <i key={index} className={index < entry.level ? "on" : ""} />)}</b></div><div className="codex-meta"><span>{entry.kind === "insect" ? "昆虫" : entry.kind === "bird" ? "飞鸟" : entry.kind === "person" ? "人物" : "动物"}</span><span>{seasonLabel}</span></div>{entry.unlocked ? <button className="real-photo-entry" onClick={() => onPhoto(event?.id)}><span>▧</span> 查看真实照片</button> : <button className="real-photo-entry locked-entry" disabled><span>□</span> 等待监控解锁</button>}</article>;
+  })}</div>;
+}
+
+function CodexPage() {
+  const [photoOpen, setPhotoOpen] = useState(false);
+  const [selected, setSelected] = useState(VISITORS[0]);
+  const unlockedCount = VISITOR_CODEX.filter((entry) => entry.unlocked).length;
+  const rareCount = VISITOR_CODEX.filter((entry) => entry.unlocked && entry.rarity === "rare").length;
+  const maxLevel = Math.max(...VISITOR_CODEX.filter((entry) => entry.unlocked).map((entry) => entry.level));
+  const openPhoto = (eventId?: string) => {
+    const event = VISITORS.find((item) => item.id === eventId);
+    if (event) setSelected(event);
+    setPhotoOpen(true);
+  };
+  return <section className="content-page codex-page"><PageHeader icon="✨" title="农场图鉴" subtitle="把真实监控识别到的田野访客，慢慢收成一本会闪光的图鉴" />
+    <section className="codex-hero"><div><small>COLLECTION BOOK</small><h2>麦芽谷访客图鉴</h2><p>解锁来自摄像头的虫、鸟、人和小动物记录。等级越高，代表越难遇见或越值得关注。</p></div><span>✨</span></section>
+    <div className="archive-stats codex-stats"><article><small>解锁</small><strong>{unlockedCount}/{VISITOR_CODEX.length}</strong><span>当前进度</span></article><article><small>最高等级</small><strong>Lv.{maxLevel}</strong><span>已解锁卡牌</span></article><article><small>稀有</small><strong>{rareCount}</strong><span>闪光卡牌</span></article><article><small>照片</small><strong>5</strong><span>真实入口预留</span></article></div>
+    <CodexGrid onPhoto={openPhoto} />
+    {photoOpen && <VisitorPhotoModal event={selected} onClose={() => setPhotoOpen(false)} />}
+  </section>;
+}
+
+function ArchivePage() {
+  const { instructions, setPage, setCameraId } = useApp();
+  const unlockedCount = VISITOR_CODEX.filter((entry) => entry.unlocked).length;
+  const archiveStats = [
+    { label: "地块", value: PLOTS.length, note: "实时映射" },
+    { label: "摄像头", value: `${CAMERAS.filter((item) => item.status !== "offline").length}/${CAMERAS.length}`, note: "在线设备" },
+    { label: "图鉴", value: `${unlockedCount}/${VISITOR_CODEX.length}`, note: "访客解锁" },
+    { label: "指令", value: instructions.length, note: "农事记录" },
+  ];
+  return <section className="content-page archive-page"><PageHeader icon="🗂" title="农场数字档案" subtitle="把真实土地、监控、AI 分析和农事执行整理成一份会生长的档案" />
+    <section className="archive-cover"><div className="archive-seal">芽</div><div><small>DIGITAL FARM FILE · HANGZHOU</small><h2>麦芽谷 2026 夏季档案</h2><p>这不是创建出来的虚拟农场，而是由杭州菜园的摄像头、传感器、用户指令和 AI 分析共同生成的数字副本。</p></div><button onClick={() => setCameraId("cam-wide")}>查看现场 ▣</button></section>
+    <div className="archive-stats">{archiveStats.map((item) => <article key={item.label}><small>{item.label}</small><strong>{item.value}</strong><span>{item.note}</span></article>)}</div>
+    <div className="archive-sections">{FARM_ARCHIVE.map((section) => <section key={section.id} className="archive-section"><div className="section-title"><div><small>ARCHIVE · {section.id.toUpperCase()}</small><h2>{section.title}</h2></div><span>{section.note}</span></div><div className="archive-records">{section.records.map((record) => <article key={record.id}><span>{record.icon}</span><div><small>{record.source}</small><strong>{record.title}</strong><p>{record.detail}</p><footer><b>{record.value}</b><em>{record.updatedAt} · 可信度 {record.confidence}%</em></footer></div></article>)}</div></section>)}</div>
+    <section className="archive-actions"><button onClick={() => setPage("journal")}>查看农场手账</button><button onClick={() => setPage("codex")}>打开农场图鉴</button><button onClick={() => setPage("commands")}>查看指令进度</button></section>
   </section>;
 }
 
@@ -220,22 +356,45 @@ function CameraModal() {
   return <div className="modal-backdrop" role="dialog" aria-modal="true" aria-label="真实视频监控"><section className="camera-modal"><header><div><small>真实现场 · 视频功能</small><h2>{camera.name}</h2><p>{camera.plot}</p></div><span className={`camera-status ${camera.status}`}><i />{camera.status === "online" ? "设备在线" : camera.status === "weak" ? "信号较弱" : "设备离线"}</span><button onClick={() => setCameraId(null)} aria-label="关闭">×</button></header><div className="video-placeholder"><div className="video-grid" /><span>▣</span><h3>视频流待接入</h3><p>此处将显示摄像头实时画面</p><small>STREAM PLACEHOLDER · {camera.updatedAt}</small></div><aside><h3>AI 现场观察</h3><div><span>🌿</span><p><strong>作物状态</strong><small>{camera.id === "cam-south" ? "番茄叶片需要关注" : "整体长势平稳"}</small></p></div><div><span>🐛</span><p><strong>今日访客</strong><small>{camera.id === "cam-south" ? "发现 3 只疑似菜青虫" : "暂未发现异常访客"}</small></p></div><div><span>⏱</span><p><strong>数据说明</strong><small>演示识别数据 · 非真实直播</small></p></div><button className="secondary-button" onClick={() => setCameraId(null)}>返回卡通农场</button></aside></section></div>;
 }
 
+function SharedFarmPage({ assist = false }: { assist?: boolean }) {
+  const addInstruction = useApp((s) => s.addInstruction);
+  return <div className={`shared-shell ${assist ? "assist-mode" : "share-mode"}`}><main className="shared-farm-main"><div className="farm-layer visible"><FarmExperience onAddInstruction={addInstruction} /></div><FarmOverlay shared={!assist} assist={assist} /></main></div>;
+}
+
 function AppContent() {
   const page = useApp((s) => s.page);
   const addInstruction = useApp((s) => s.addInstruction);
   return <main className={`app-main page-${page}`}>
     <div className={`farm-layer ${page === "farm" ? "visible" : ""}`} aria-hidden={page !== "farm"}><FarmExperience onAddInstruction={addInstruction} /></div>
-    {page === "farm" && <FarmOverlay />}{page === "journal" && <JournalPage />}{page === "seasons" && <SeasonsPage />}{page === "visitors" && <VisitorsPage />}{page === "commands" && <CommandsPage />}{page === "profile" && <ProfilePage />}
+    {page === "farm" && <FarmOverlay />}{page === "journal" && <JournalPage />}{page === "seasons" && <SeasonsPage />}{page === "visitors" && <VisitorsPage />}{page === "codex" && <CodexPage />}{page === "archive" && <ArchivePage />}{page === "commands" && <CommandsPage />}{page === "profile" && <ProfilePage />}
   </main>;
 }
 
 export default function AIFarmApp() {
   const { session, setSession, sidebarCollapsed } = useApp();
   const [hydrated, setHydrated] = useState(false);
+  const [shared, setShared] = useState(false);
+  const [assist, setAssist] = useState(false);
   // Local-only demo authentication is restored after the browser mounts.
-  // eslint-disable-next-line react-hooks/set-state-in-effect
-  useEffect(() => { const saved = localStorage.getItem("maiyagu-session"); if (saved) { try { setSession(JSON.parse(saved)); } catch { localStorage.removeItem("maiyagu-session"); } } setHydrated(true); }, [setSession]);
+  useEffect(() => {
+    const syncRoute = () => {
+      const params = new URLSearchParams(window.location.search);
+      const shareMode = params.get("share") === "1";
+      const assistMode = params.get("assist") === "1";
+      setShared(shareMode);
+      setAssist(assistMode);
+      if (!shareMode && !assistMode) {
+        const saved = localStorage.getItem("maiyagu-session");
+        if (saved) { try { setSession(JSON.parse(saved)); } catch { localStorage.removeItem("maiyagu-session"); } }
+      }
+      setHydrated(true);
+    };
+    syncRoute();
+    window.addEventListener("popstate", syncRoute);
+    return () => window.removeEventListener("popstate", syncRoute);
+  }, [setSession]);
   if (!hydrated) return <div className="app-boot"><span>☀</span><strong>正在打开麦芽谷…</strong></div>;
+  if (shared || assist) return <SharedFarmPage assist={assist} />;
   if (!session) return <LoginScreen />;
   return <div className={`product-shell ${sidebarCollapsed ? "sidebar-is-collapsed" : ""}`}><Sidebar /><AppContent /><CameraModal /></div>;
 }

@@ -1,4 +1,4 @@
-export type AppPage = "farm" | "journal" | "seasons" | "visitors" | "commands" | "profile";
+export type AppPage = "farm" | "journal" | "seasons" | "visitors" | "codex" | "archive" | "commands" | "profile";
 export type Season = "spring" | "summer" | "autumn" | "winter";
 export type VisitorKind = "insect" | "bird" | "person" | "animal";
 
@@ -9,6 +9,9 @@ export interface PlantingAdvice { id: string; season: Season; crop: string; plot
 export interface SeasonTimelineEvent { id: string; date: string; season: Season; type: "solar-term" | "plant" | "care" | "harvest"; title: string; detail: string; status: "past" | "current" | "future" }
 export interface VisitorEvent { id: string; date: string; time: string; kind: VisitorKind; name: string; icon: string; plot: string; count: number; confidence: number; impact: string; cameraId: string; authorized?: boolean }
 export interface CameraFeed { id: string; name: string; plot: string; status: "online" | "weak" | "offline"; updatedAt: string; streamUrl?: string }
+export interface VisitorCodexEntry { id: string; kind: VisitorKind; name: string; icon: string; rarity: "common" | "uncommon" | "rare"; level: 1 | 2 | 3 | 4 | 5; featured?: boolean; unlocked: boolean; firstSeen?: string; lastSeen?: string; totalSeen: number; habitat: string; season: Season[]; story: string; eventId?: string }
+export interface FarmArchiveRecord { id: string; icon: string; title: string; value: string; detail: string; source: string; updatedAt: string; confidence: number }
+export interface FarmArchiveSection { id: string; title: string; note: string; records: FarmArchiveRecord[] }
 
 export const SNAPSHOT: FarmSnapshot = { farmName: "麦芽谷·杭州菜园", location: "浙江杭州 · 余杭区", updatedAt: "刚刚", health: 86, weather: "晴间多云", temperature: 31 };
 
@@ -34,11 +37,40 @@ export const VISITORS: VisitorEvent[] = [
   { id: "v5", date: "2026-08-02", time: "22:14", kind: "animal", name: "橘猫", icon: "🐈", plot: "北侧围栏", count: 1, confidence: 84, impact: "停留约 4 分钟，没有进入种植区。", cameraId: "cam-north" },
 ];
 
+export const VISITOR_CODEX: VisitorCodexEntry[] = [
+  { id: "codex-cabbage-worm", kind: "insect", name: "菜青虫", icon: "🐛", rarity: "common", level: 2, unlocked: true, firstSeen: "2026-08-05", lastSeen: "2026-08-05", totalSeen: 3, habitat: "番茄 B2 · 叶背", season: ["spring", "summer", "autumn"], story: "喜欢躲在嫩叶背面，发现后适合安排一次轻量巡检。", eventId: "v1" },
+  { id: "codex-sparrow", kind: "bird", name: "麻雀", icon: "🐦", rarity: "common", level: 2, unlocked: true, firstSeen: "2026-08-05", lastSeen: "2026-08-05", totalSeen: 2, habitat: "溪边 A1 · 围栏", season: ["spring", "summer", "autumn", "winter"], story: "常在围栏短暂停留，是农场清晨最容易遇见的访客。", eventId: "v2" },
+  { id: "codex-ladybug", kind: "insect", name: "七星瓢虫", icon: "🐞", rarity: "uncommon", level: 3, featured: true, unlocked: true, firstSeen: "2026-08-04", lastSeen: "2026-08-04", totalSeen: 1, habitat: "番茄 B2 · 枝叶间", season: ["spring", "summer"], story: "益虫朋友，出现时通常意味着生态状态正在变得热闹。", eventId: "v3" },
+  { id: "codex-worker", kind: "person", name: "巡田工作人员", icon: "🧑‍🌾", rarity: "common", level: 1, unlocked: true, firstSeen: "2026-08-03", lastSeen: "2026-08-03", totalSeen: 1, habitat: "水渠 D3 · 巡检路线", season: ["spring", "summer", "autumn", "winter"], story: "已授权人员记录，只展示身份状态，不展示真实人脸。", eventId: "v4" },
+  { id: "codex-orange-cat", kind: "animal", name: "橘猫", icon: "🐈", rarity: "rare", level: 4, featured: true, unlocked: true, firstSeen: "2026-08-02", lastSeen: "2026-08-02", totalSeen: 1, habitat: "北侧围栏 · 夜间", season: ["summer", "autumn"], story: "偶尔路过的邻居，首版仅记录停留，不进入种植区。", eventId: "v5" },
+  { id: "codex-dragonfly", kind: "insect", name: "蜻蜓", icon: "◇", rarity: "uncommon", level: 3, unlocked: false, totalSeen: 0, habitat: "浅水沟附近", season: ["summer", "autumn"], story: "尚未解锁。等水渠摄像头捕捉到清晰画面后，会点亮这张卡。" },
+  { id: "codex-butterfly", kind: "insect", name: "菜粉蝶", icon: "✦", rarity: "uncommon", level: 3, unlocked: false, totalSeen: 0, habitat: "开花作物附近", season: ["spring", "summer"], story: "尚未解锁。需要连续两次识别到飞行轨迹，才会加入图鉴。" },
+  { id: "codex-unknown-person", kind: "person", name: "未知访客", icon: "?", rarity: "rare", level: 5, featured: true, unlocked: false, totalSeen: 0, habitat: "入口摄像头", season: ["spring", "summer", "autumn", "winter"], story: "尚未解锁。人物类记录会默认模糊画面，并优先提示授权状态。" },
+];
+
 export const CAMERAS: CameraFeed[] = [
   { id: "cam-wide", name: "农场全景", plot: "中心高杆", status: "online", updatedAt: "刚刚" },
   { id: "cam-south", name: "番茄地块", plot: "B2 南侧", status: "online", updatedAt: "12秒前" },
   { id: "cam-east", name: "溪边地块", plot: "A1 东侧", status: "weak", updatedAt: "1分钟前" },
   { id: "cam-north", name: "北侧围栏", plot: "北侧入口", status: "offline", updatedAt: "18分钟前" },
+];
+
+export const FARM_ARCHIVE: FarmArchiveSection[] = [
+  { id: "land", title: "土地档案", note: "真实地块转化成数字农场的底稿", records: [
+    { id: "area", icon: "▦", title: "示范面积", value: "约 120m²", detail: "由全景摄像头与人工标定共同确认，当前展示为卡通比例映射。", source: "全景摄像头 · 地块边界标定", updatedAt: "2026-08-05 14:25", confidence: 92 },
+    { id: "soil", icon: "◉", title: "平均 pH", value: "6.6", detail: "整体适合番茄、玉米、菠菜等常见菜园作物。", source: "A1/B2/C1/D3 土壤探针", updatedAt: "2026-08-05 14:22", confidence: 94 },
+    { id: "moisture", icon: "≈", title: "平均湿度", value: "57%", detail: "B2 番茄区偏干，D3 水渠旁预留地湿度较高。", source: "土壤湿度传感器", updatedAt: "2026-08-05 14:20", confidence: 91 },
+  ] },
+  { id: "crops", title: "作物档案", note: "记录作物状态、生长阶段和可收成线索", records: [
+    { id: "tomato", icon: "🍅", title: "樱桃番茄", value: "挂果期", detail: "今日有可收成植株，建议优先安排 16:30 前采摘。", source: "B2 南侧摄像头 · AI 作物识别", updatedAt: "2026-08-05 14:22", confidence: 88 },
+    { id: "corn", icon: "🌽", title: "甜玉米", value: "拔节期", detail: "长势舒展，预计 3 天后进入下一轮收成检查。", source: "A1 土壤探针 · 东侧摄像头", updatedAt: "2026-08-05 14:25", confidence: 96 },
+    { id: "sunflower", icon: "🌻", title: "向日葵", value: "盛花期", detail: "光照充足，花盘状态稳定，可作为访客观察区。", source: "全景摄像头", updatedAt: "2026-08-05 14:20", confidence: 94 },
+  ] },
+  { id: "operations", title: "运营档案", note: "把用户指令、现场执行和证据回传串起来", records: [
+    { id: "commands", icon: "☑", title: "农事指令", value: "2 条进行中", detail: "包含番茄补水与 D3 秋菠菜播种准备，后续可接线下人员回执。", source: "我的指令 · 本地演示数据", updatedAt: "刚刚", confidence: 100 },
+    { id: "cameras", icon: "▣", title: "摄像头", value: "3/4 在线", detail: "全景、番茄区、溪边设备可用，北侧围栏设备离线。", source: "设备心跳 · 演示状态", updatedAt: "2026-08-05 14:26", confidence: 90 },
+    { id: "visitors", icon: "✦", title: "访客记录", value: "5 张已解锁", detail: "已识别昆虫、飞鸟、授权人员与小动物，真实照片入口预留。", source: "访客日历 · AI 识别摘要", updatedAt: "2026-08-05 14:18", confidence: 89 },
+  ] },
 ];
 
 export const SOLAR_TERMS_2026 = [
