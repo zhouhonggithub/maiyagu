@@ -4,11 +4,11 @@ import type { AppDb } from '../../shared/db';
 import * as configRepo from './repository';
 
 function parseTimeRange(range: string): [number, number] {
-  const [start, end] = range.split('-').map((t) => {
-    const [h, m] = t.split(':').map(Number);
-    return h * 60 + m;
+  const parts = range.split('-').map((t) => {
+    const segments = t.split(':').map(Number);
+    return (segments[0] ?? 0) * 60 + (segments[1] ?? 0);
   });
-  return [start, end];
+  return [parts[0] ?? 0, parts[1] ?? 0];
 }
 
 function validateTimeWaveCoverage(config: TimeWaveConfig) {

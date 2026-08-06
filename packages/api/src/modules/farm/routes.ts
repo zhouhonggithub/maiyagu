@@ -18,7 +18,7 @@ const farmRoutes = new Hono<{ Bindings: Env }>();
 // POST /apply — submit farm application (public, authenticated)
 farmRoutes.post('/apply', zValidator('json', farmApplicationSchema), async (c) => {
   const data = c.req.valid('json');
-  const userId = c.get('userId') as string;
+  const userId = (c as any).get('userId') as string;
   const db = createDb(c.env.DB);
   const farm = await farmService.createFarmApplication(db, userId, data);
   return c.json({ success: true, data: farm }, 201);
@@ -37,7 +37,7 @@ farmRoutes.get('/', requireRole('platform_admin'), async (c) => {
 
 // GET /:id — farm detail (admin)
 farmRoutes.get('/:id', requireRole('platform_admin'), async (c) => {
-  const farmId = c.req.param('id');
+  const farmId = c.req.param('id')!;
   const db = createDb(c.env.DB);
   const result = await farmService.getFarmDashboard(db, farmId);
   return c.json({ success: true, data: result });
@@ -45,7 +45,7 @@ farmRoutes.get('/:id', requireRole('platform_admin'), async (c) => {
 
 // POST /:id/approve — approve farm (admin)
 farmRoutes.post('/:id/approve', requireRole('platform_admin'), async (c) => {
-  const farmId = c.req.param('id');
+  const farmId = c.req.param('id')!;
   const db = createDb(c.env.DB);
   const farm = await farmService.approveFarm(db, farmId);
   return c.json({ success: true, data: farm });
@@ -53,7 +53,7 @@ farmRoutes.post('/:id/approve', requireRole('platform_admin'), async (c) => {
 
 // POST /:id/suspend — suspend farm (admin)
 farmRoutes.post('/:id/suspend', requireRole('platform_admin'), async (c) => {
-  const farmId = c.req.param('id');
+  const farmId = c.req.param('id')!;
   const db = createDb(c.env.DB);
   const farm = await farmService.suspendFarm(db, farmId);
   return c.json({ success: true, data: farm });
@@ -61,7 +61,7 @@ farmRoutes.post('/:id/suspend', requireRole('platform_admin'), async (c) => {
 
 // DELETE /:id — soft delete farm (admin)
 farmRoutes.delete('/:id', requireRole('platform_admin'), async (c) => {
-  const farmId = c.req.param('id');
+  const farmId = c.req.param('id')!;
   const db = createDb(c.env.DB);
   const farm = await farmService.deleteFarm(db, farmId);
   return c.json({ success: true, data: farm });

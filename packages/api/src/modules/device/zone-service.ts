@@ -62,8 +62,8 @@ export function calculateArea(points: Point[]): number {
   let area = 0;
   for (let i = 0; i < n; i++) {
     const j = (i + 1) % n;
-    area += points[i][0] * points[j][1];
-    area -= points[j][0] * points[i][1];
+    area += points[i]![0] * points[j]![1];
+    area -= points[j]![0] * points[i]![1];
   }
   return Math.abs(area) / 2;
 }

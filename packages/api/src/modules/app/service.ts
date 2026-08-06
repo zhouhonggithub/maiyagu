@@ -162,9 +162,9 @@ export async function getVisitorEvents(db: AppDb, memberId: string, farmId: stri
   // Group by date
   const grouped: Record<string, typeof events> = {};
   for (const event of events) {
-    const date = event.detectedAt.split('T')[0];
+    const date = event.detectedAt.split('T')[0] ?? '';
     if (!grouped[date]) grouped[date] = [];
-    grouped[date].push(event);
+    grouped[date]!.push(event);
   }
 
   return grouped;

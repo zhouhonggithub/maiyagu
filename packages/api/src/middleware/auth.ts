@@ -34,18 +34,18 @@ export function authMiddleware() {
     const token = authHeader.slice(7);
 
     try {
-      const payload = await verify(token, c.env.JWT_SECRET) as unknown as JwtPayload;
+      const payload = await verify(token, c.env.JWT_SECRET, 'HS256') as unknown as JwtPayload;
 
       // Check expiration explicitly (hono/jwt also checks, belt-and-suspenders)
       if (payload.exp && payload.exp * 1000 < Date.now()) {
         throw new UnauthorizedError('Token expired');
       }
 
-      c.set('jwtPayload', payload);
-      c.set('userId', payload.sub);
-      c.set('userRole', payload.role);
+      (c as any).set('jwtPayload', payload);
+      (c as any).set('userId', payload.sub);
+      (c as any).set('userRole', payload.role);
       if (payload.farmId) {
-        c.set('farmId', payload.farmId);
+        (c as any).set('farmId', payload.farmId);
       }
     } catch (err) {
       if (err instanceof UnauthorizedError) throw err;

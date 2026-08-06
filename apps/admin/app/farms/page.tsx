@@ -30,7 +30,7 @@ export default function FarmsListPage() {
               title: 'Farm Name',
               dataIndex: 'name',
               key: 'name',
-              render: (name: string, record: { id: string }) => (
+              render: (name: any, record: any) => (
                 <Link href={`/farms/${record.id}`}>{name}</Link>
               ),
             },
@@ -68,7 +68,7 @@ export default function FarmsListPage() {
             {
               title: 'Actions',
               key: 'actions',
-              render: (_: unknown, record: { id: string }) => (
+              render: (_: any, record: any) => (
                 <Link href={`/farms/${record.id}`}>
                   <Button type="link" size="small">View</Button>
                 </Link>

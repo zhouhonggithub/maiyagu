@@ -56,7 +56,7 @@ export default function ConfigPage() {
 
   const updateEntry = (index: number, field: keyof TimeWaveEntry, value: string | number) => {
     const updated = [...entries];
-    (updated[index] as Record<string, string | number>)[field] = value;
+    (updated[index] as any)[field] = value;
     setEntries(updated);
   };
 

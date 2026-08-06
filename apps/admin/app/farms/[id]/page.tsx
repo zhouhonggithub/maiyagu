@@ -10,8 +10,8 @@ const { Title, Text } = Typography;
 export default function FarmDetailPage() {
   const params = useParams();
   const router = useRouter();
-  const { queryResult } = useShow({ resource: 'farms', id: params.id as string });
-  const { data, isLoading } = queryResult;
+  const showResult = useShow({ resource: 'farms', id: params.id as string });
+  const { data, isLoading } = (showResult as any).queryResult ?? showResult;
   const farm = data?.data as Record<string, unknown> | undefined;
 
   if (isLoading) {

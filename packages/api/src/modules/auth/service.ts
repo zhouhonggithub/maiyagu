@@ -58,7 +58,7 @@ export async function login(
       role: 'member',
       createdAt: now,
       updatedAt: now,
-    });
+    }) ?? null;
   }
 
   if (!user) {
@@ -145,7 +145,7 @@ export async function loginWithWechat(
       role: 'member',
       createdAt: now,
       updatedAt: now,
-    });
+    }) ?? null;
   }
 
   if (!user) {
@@ -304,7 +304,7 @@ async function verifyPassword(password: string, storedHash: string): Promise<boo
   );
 
   const derivedBits = await crypto.subtle.deriveBits(
-    { name: 'PBKDF2', salt, iterations: 100000, hash: 'SHA-256' },
+    { name: 'PBKDF2', salt: salt as BufferSource, iterations: 100000, hash: 'SHA-256' },
     key,
     256,
   );
@@ -315,7 +315,7 @@ async function verifyPassword(password: string, storedHash: string): Promise<boo
   if (derived.length !== expectedHash.length) return false;
   let diff = 0;
   for (let i = 0; i < derived.length; i++) {
-    diff |= derived[i] ^ expectedHash[i];
+    diff |= derived[i]! ^ expectedHash[i]!;
   }
   return diff === 0;
 }

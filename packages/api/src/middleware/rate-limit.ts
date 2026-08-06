@@ -20,14 +20,14 @@ const counters = new Map<string, { count: number; resetAt: number }>();
 export function rateLimitMiddleware() {
   return async (c: Context<{ Bindings: Env }>, next: Next) => {
     const path = c.req.path;
-    const farmId = c.get('farmId') as string | undefined;
+    const farmId = (c as any).get('farmId') as string | undefined;
     const clientId = farmId || c.req.header('cf-connecting-ip') || 'anonymous';
 
     // Determine rate limit config based on path prefix
-    let config = RATE_LIMIT_CONFIGS.app;
-    if (path.startsWith('/api/v1/admin')) config = RATE_LIMIT_CONFIGS.admin;
-    else if (path.startsWith('/api/v1/farm')) config = RATE_LIMIT_CONFIGS.farm;
-    else if (path.startsWith('/api/v1/public')) config = RATE_LIMIT_CONFIGS.public;
+    let config: RateLimitConfig = RATE_LIMIT_CONFIGS.app!;
+    if (path.startsWith('/api/v1/admin')) config = RATE_LIMIT_CONFIGS.admin!;
+    else if (path.startsWith('/api/v1/farm')) config = RATE_LIMIT_CONFIGS.farm!;
+    else if (path.startsWith('/api/v1/public')) config = RATE_LIMIT_CONFIGS.public!;
 
     const key = `${clientId}:${path.split('/').slice(0, 4).join('/')}`;
     const now = Date.now();
