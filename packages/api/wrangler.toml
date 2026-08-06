@@ -1,0 +1,53 @@
+name = "ai-farm-api"
+main = "src/index.ts"
+compatibility_date = "2024-12-01"
+compatibility_flags = ["nodejs_compat"]
+
+[triggers]
+crons = ["*/10 * * * *", "0 2 * * *", "0 0 1 * *"]
+
+[[d1_databases]]
+binding = "DB"
+database_name = "ai-farm-db"
+database_id = "placeholder-will-be-set-on-deploy"
+
+[[r2_buckets]]
+binding = "R2"
+bucket_name = "ai-farm-storage"
+
+[[queues.producers]]
+binding = "FRAME_CAPTURE_QUEUE"
+queue = "frame-capture-dispatch"
+
+[[queues.producers]]
+binding = "LLM_ANALYSIS_QUEUE"
+queue = "llm-analysis"
+
+[[queues.producers]]
+binding = "NOTIFICATION_QUEUE"
+queue = "notification-delivery"
+
+[[queues.consumers]]
+queue = "frame-capture-dispatch"
+max_batch_size = 10
+max_retries = 2
+
+[[queues.consumers]]
+queue = "llm-analysis"
+max_batch_size = 5
+max_retries = 3
+
+[[queues.consumers]]
+queue = "notification-delivery"
+max_batch_size = 20
+max_retries = 3
+
+[durable_objects]
+bindings = [
+  { name = "PLOT_REALTIME", class_name = "PlotRealtimeDO" },
+  { name = "FARM_SESSION", class_name = "FarmSessionDO" }
+]
+
+[[migrations]]
+tag = "v1"
+new_classes = ["PlotRealtimeDO", "FarmSessionDO"]

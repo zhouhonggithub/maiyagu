@@ -3,10 +3,23 @@
   "version": "0.1.0",
   "private": true,
   "description": "AI农场 SaaS 平台 - 模块化单体架构",
+  "packageManager": "pnpm@9.15.0",
+  "engines": {
+    "node": ">=20.0.0"
+  },
   "scripts": {
-    "dev:client": "npm run dev --prefix apps/client",
-    "build:client": "npm run build --prefix apps/client",
-    "dev:api": "npm run dev --prefix packages/api",
-    "build:api": "npm run build --prefix packages/api"
+    "dev": "turbo dev",
+    "build": "turbo build",
+    "test": "turbo test",
+    "lint": "turbo lint",
+    "clean": "turbo clean",
+    "dev:client": "pnpm --filter @ai-farm/client dev",
+    "build:client": "pnpm --filter @ai-farm/client build",
+    "dev:api": "pnpm --filter @ai-farm/api dev",
+    "build:api": "pnpm --filter @ai-farm/api build"
+  },
+  "devDependencies": {
+    "turbo": "^2.3.0",
+    "typescript": "^5.7.0"
   }
 }

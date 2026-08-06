@@ -1,0 +1,32 @@
+{
+  "name": "@ai-farm/api",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "build": "wrangler deploy --dry-run --outdir=dist",
+    "deploy": "wrangler deploy",
+    "test": "vitest run",
+    "clean": "rm -rf dist",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "wrangler d1 migrations apply ai-farm-db --local"
+  },
+  "dependencies": {
+    "hono": "^4.6.0",
+    "@hono/zod-validator": "^0.4.1",
+    "drizzle-orm": "^0.36.0",
+    "zod": "^3.23.0",
+    "nanoid": "^5.0.9",
+    "ai": "^4.0.0",
+    "@ai-sdk/openai": "^1.0.0",
+    "@ai-farm/shared": "workspace:*"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20241205.0",
+    "wrangler": "^3.99.0",
+    "drizzle-kit": "^0.30.0",
+    "vitest": "^2.1.0",
+    "typescript": "^5.7.0"
+  }
+}

@@ -22,5 +22,11 @@ dist/
 .DS_Store
 Thumbs.db
 
+# Turbo
+.turbo/
+
+# pnpm
+pnpm-debug.log*
+
 # Logs
 *.log
